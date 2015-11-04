@@ -33,9 +33,12 @@ import gov.nasa.jpl.mbee.util.FileUtils;
 import gov.nasa.jpl.mbee.util.Pair;
 import gov.nasa.jpl.mbee.util.Utils;
 
+import java.io.PrintWriter;
 import java.lang.reflect.Method;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -582,11 +585,45 @@ public class JsonSystemModel extends AbstractSystemModel< JSONObject, JSONObject
 	}
 
 	/**
-	 * Not yet implemented.
+	 * @author SFF
+	 * Deletes JsonObj element.
 	 */
 	@Override
 	public Object delete(Object object) {
-		// TODO Auto-generated method stub
+		
+		JSONObject jsonObj = (JSONObject)object;
+		String id;
+		
+		try
+		{
+			id = jsonObj.getString("sysmlid");
+			elementMap.remove(id);
+			
+			try
+			{
+				String owner = jsonObj.getString("owner");
+				List<String> owned = ownershipMap.get(owner);
+				
+				for(int i = 0; i < owned.size(); i++)
+				{
+					String objID = owned.get(i);
+					
+					if(objID.equals(i))
+						owned.remove(i);
+				}
+				
+				System.out.println("JSON Object with ID:" + id + " deleted.");
+			}
+			catch(Exception e)
+			{
+				System.err.println("JsonObject has no owner!");
+			}
+		}
+		catch(Exception e)
+		{
+			System.err.println("JsonObject has no sysmlid!");
+		}
+		
 		return null;
 	}
 
@@ -1852,101 +1889,131 @@ public class JsonSystemModel extends AbstractSystemModel< JSONObject, JSONObject
             String jsonString = FileUtils.fileToString(args[0]);
             JsonSystemModel systemModel = new JsonSystemModel(jsonString);
             List<JSONObject> elements;
+            
+            //Print file named with the date and time of processing:
+            String time = new SimpleDateFormat("yyyyMdHms").format(new Date());
+            String filename = "DATA" + time + ".txt";
+            String filepath = "src/sysml/test/results/" + filename;
+            PrintWriter print = new PrintWriter(filepath);
+            print.write("****" + time + "****\n");
 
             // Search for all elements with the name "Info":
             elements = (List<JSONObject>) systemModel.getElementWithName(null, "Info");
+            print.write("\nItems with name 'Info' (" + elements.size() + "): \n");
             System.out.println("\nItems with name 'Info' (" + elements.size() + "):");
             for( JSONObject element : elements ){
+            	print.write(systemModel.getName(element) + ": " + element.toString() + "\n");
             	System.out.println(systemModel.getName(element) + ": " + element.toString());
             }
 
         	// Search for all elements with the type "Expose":
             elements = (List<JSONObject>) systemModel.getElementWithType(null, "Expose");
+            print.write("\nItems with type 'Expose' (" + elements.size() + "): \n");
             System.out.println("\nItems with type 'Expose' (" + elements.size() + "):");
             for( JSONObject element : elements ){
+            	print.write(systemModel.getType(element, null) + ": " + element.toString() + "\n");
             	System.out.println(systemModel.getType(element, null) + ": " + element.toString());
 
             	// Print the source and target for this expose:
             	JSONObject source = systemModel.getSource(element).toArray(new JSONObject[0])[0];
             	JSONObject target = systemModel.getTarget(element).toArray(new JSONObject[0])[0];
+            	print.write("\tsource: " + systemModel.getType( source, null ) + " " + systemModel.getName( source ) + " " + systemModel.getIdentifier( source ) + "\n");
+            	print.write("\ttarget: " + systemModel.getType( target, null ) + " " + systemModel.getName( target ) + " " + systemModel.getIdentifier( target ) + "\n");
             	System.out.println("\tsource: " + systemModel.getType( source, null ) + " " + systemModel.getName( source ) + " " + systemModel.getIdentifier( source ));
             	System.out.println("\ttarget: " + systemModel.getType( target, null ) + " " + systemModel.getName( target ) + " " + systemModel.getIdentifier( target ));
             }
 
             // Search for all elements with the sysmlid "_17_0_5_1_6050206_1414171540166_947652_15968":
             elements = (List<JSONObject>) systemModel.getElementWithIdentifier(null, "_17_0_5_1_6050206_1414171540166_947652_15968");
+            print.write("\nItems with id '_17_0_5_1_6050206_1414171540166_947652_15968' (" + elements.size() + "):" + "\n");
             System.out.println("\nItems with id '_17_0_5_1_6050206_1414171540166_947652_15968' (" + elements.size() + "):");
             for( JSONObject element : elements ){
+            	print.write(systemModel.getIdentifier(element) + ": " + element.toString() + "\n");
             	System.out.println(systemModel.getIdentifier(element) + ": " + element.toString());
             }
 
             // List all children elements of the element with sysmlid "_17_0_5_1_6050206_1413312418477_883812_11347":
             elements = (List<JSONObject>) systemModel.getElementWithIdentifier(null, "_17_0_5_1_6050206_1413312418477_883812_11347");
+            print.write("\nChildren of element '_17_0_5_1_6050206_1413312418477_883812_11347' (" + elements.size() + "):" + "\n");
             System.out.println("\nChildren of element '_17_0_5_1_6050206_1413312418477_883812_11347' (" + elements.size() + "):");
             for( JSONObject element : elements ){
             	List<JSONObject> children = (List<JSONObject>) systemModel.getChildren(element);
             	for( JSONObject child : children ) {
             		JSONObject owner = systemModel.getOwner(element).toArray(new JSONObject[0])[0];
-                	System.out.println(systemModel.getName(owner) + " " + systemModel.getIdentifier(owner) + " owns " + systemModel.getIdentifier(child) + ": " + child.toString());
+            		print.write(systemModel.getName(owner) + " " + systemModel.getIdentifier(owner) + " owns " + systemModel.getIdentifier(child) + ": " + child.toString() + "\n");
+            		System.out.println(systemModel.getName(owner) + " " + systemModel.getIdentifier(owner) + " owns " + systemModel.getIdentifier(child) + ": " + child.toString());
             	}
             }
 
             // Search for all elements with the type "Element" within the context of element with name "Bike":
             elements = (List<JSONObject>) systemModel.getElementWithName(null, "Bike");
             //elements = (List<JSONObject>) systemModel.getElementWithIdentifier(null, "_17_0_5_1_6050206_1413319804206_110143_29011");
+            print.write("\nItems with name 'Bike' (" + elements.size() + "):" + "\n");
             System.out.println("\nItems with name 'Bike' (" + elements.size() + "):");
             for( JSONObject element : elements ){
             	List<JSONObject> properties = (List<JSONObject>) systemModel.getElementWithType(element, "Element");
             	for( JSONObject property : properties ){
             		JSONObject owner = systemModel.getOwner(property).toArray(new JSONObject[0])[0];
+            		print.write(systemModel.getName(owner) + " " + systemModel.getIdentifier(owner) + " owns " + systemModel.getIdentifier(property) + ": " + property.toString() + "\n");
             		System.out.println(systemModel.getName(owner) + " " + systemModel.getIdentifier(owner) + " owns " + systemModel.getIdentifier(property) + ": " + property.toString());
             	}
             }
 
             // Search for all elements with the id "_17_0_5_1_6050206_1413312418570_676124_11381" within the context of element with name "Bike":
             elements = (List<JSONObject>) systemModel.getElementWithName(null, "Bike");
+            print.write("\nItems with name 'Bike' (" + elements.size() + "):" + "\n");
             System.out.println("\nItems with name 'Bike' (" + elements.size() + "):");
             for( JSONObject element : elements ){
             	List<JSONObject> properties = (List<JSONObject>) systemModel.getElementWithIdentifier(element, "_17_0_5_1_6050206_1413312418570_676124_11381");
             	for( JSONObject property : properties ){
             		JSONObject owner = systemModel.getOwner(property).toArray(new JSONObject[0])[0];
+            		print.write(systemModel.getName(owner) + " " + systemModel.getIdentifier(owner) + " owns " + systemModel.getIdentifier(property) + ": " + property.toString() + "\n");
             		System.out.println(systemModel.getName(owner) + " " + systemModel.getIdentifier(owner) + " owns " + systemModel.getIdentifier(property) + ": " + property.toString());
             	}
             }
 
             // Get all properties of element with id "_17_0_5_1_6050206_1413312418570_676124_11381"
             elements = (List<JSONObject>) systemModel.getElementWithName(null, "Bike");
+            print.write("\nItems with name 'Bike' (" + elements.size() + "):" + "\n");
             System.out.println("\nItems with name 'Bike' (" + elements.size() + "):");
             for( JSONObject element : elements ){
 	            Map<String, Object> allProperties = systemModel.getElementProperties(element);
-	    		System.out.println("Properties:");
+	            print.write("Properties:" + "\n");
+	            System.out.println("Properties:");
 	    		for (Map.Entry<String, Object> prop : allProperties.entrySet()) {
-	    		    System.out.println(prop.getKey() + ": " + prop.getValue().toString());
+	    			print.write(prop.getKey() + ": " + prop.getValue().toString() + "\n");
+	    			System.out.println(prop.getKey() + ": " + prop.getValue().toString());
 	    		}
             }
 
             // Get all properties of element with id "_17_0_5_1_6050206_1413312418570_676124_11381" of propertyType "Wheel"
             elements = (List<JSONObject>) systemModel.getElementWithName(null, "Bike");
+            print.write("\nItems with name 'Bike' (" + elements.size() + "):" + "\n");
             System.out.println("\nItems with name 'Bike' (" + elements.size() + "):");
             for( JSONObject element : elements ){
             	List<Object> properties  = (List<Object>) systemModel.getPropertyWithType(element, "Wheel");
-	    		System.out.println("Properties of type 'Wheel':");
+            	print.write("Properties of type 'Wheel':" + "\n");
+            	System.out.println("Properties of type 'Wheel':");
 	    		for( Object property : properties ){
 	    			JSONObject jsonProperty = (JSONObject) property;
             		JSONObject owner = systemModel.getOwner(jsonProperty).toArray(new JSONObject[0])[0];
+            		print.write(systemModel.getName(owner) + " " + systemModel.getIdentifier(owner) + " owns " + systemModel.getIdentifier(jsonProperty) + ": " + systemModel.getPropertyType((JSONObject) property) + " "+ property.toString() + "\n");
             		System.out.println(systemModel.getName(owner) + " " + systemModel.getIdentifier(owner) + " owns " + systemModel.getIdentifier(jsonProperty) + ": " + systemModel.getPropertyType((JSONObject) property) + " "+ property.toString());
             	}
             }
 
             // Get all properties of element with id "_17_0_5_1_6050206_1413312418570_676124_11381" with Identifier "_17_0_5_1_6050206_1413312418586_274282_11406"
             elements = (List<JSONObject>) systemModel.getElementWithName(null, "Bike");
+            print.write("\nItems with name 'Bike' (" + elements.size() + "):" + "\n");
             System.out.println("\nItems with name 'Bike' (" + elements.size() + "):");
             for( JSONObject element : elements ){
             	List<Object> properties  = (List<Object>) systemModel.getPropertyWithIdentifier(element, "_17_0_5_1_6050206_1413312418586_274282_11406");
-	    		System.out.println("Properties with id '_17_0_5_1_6050206_1413312418586_274282_11406':");
+	    		print.write("Properties with id '_17_0_5_1_6050206_1413312418586_274282_11406':" + "\n");
+            	System.out.println("Properties with id '_17_0_5_1_6050206_1413312418586_274282_11406':");
 	    		for( Object property : properties ){
 	    			JSONObject jsonProperty = (JSONObject) property;
             		JSONObject owner = systemModel.getOwner(jsonProperty).toArray(new JSONObject[0])[0];
+            		print.write(systemModel.getName(owner) + " " + systemModel.getIdentifier(owner) + " owns " + systemModel.getIdentifier(jsonProperty) + ": " + systemModel.getPropertyType((JSONObject) property) + " "+ property.toString() + "\n");
             		System.out.println(systemModel.getName(owner) + " " + systemModel.getIdentifier(owner) + " owns " + systemModel.getIdentifier(jsonProperty) + ": " + systemModel.getPropertyType((JSONObject) property) + " "+ property.toString());
             	}
             }
